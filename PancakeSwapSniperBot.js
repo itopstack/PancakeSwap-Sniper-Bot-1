@@ -2,33 +2,36 @@
 Pancakeswap Sniper Trading Bot
 Buy new bep20 tokens as soon as they launch on Pancakeswap.
 */
+require("dotenv").config();
 const ethers = require("ethers");
 const addresses = {
   WBNB: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
   pancakeRouter: "0x10ED43C718714eb63d5aA57B78B54704E256024E",
-  recipient: "", // Your bep20 wallet address
   contractAddress: "", // The contract address of the token to buy.
   contractCreator: "", // The address that adds liquidity to the pool, usually the contract creator or the contract owner.
 };
 
-const investmentAmount = "1.0"; // In bnb
-const profitXAmount = 5; //5 times profit
+const investmentAmount = "0.001"; // In bnb
+const profitXAmount = 2; //2 times profit
 const sellXamount = 1; // sell all
 const myGasLimit = 1000000;
-const mnemonic = ""; // Wallet secret recovery phrase
-const mygasPrice = ethers.utils.parseUnits("5", "gwei");
+const privateKey = process.env.PRIVATE_KEY;
+const myGasPrice = ethers.utils.parseUnits("5", "gwei");
 const myGasPriceForApproval = ethers.utils.parseUnits("5", "gwei");
-const node = "wss://bsc-ws-node.nariox.org:443";
-const wallet = new ethers.Wallet.fromMnemonic(mnemonic);
+const node = process.env.NODE;
+const wallet = new ethers.Wallet(privateKey);
 const wsProvider = new ethers.providers.WebSocketProvider(node);
 const account = wallet.connect(wsProvider);
+const recipient = account.address;
 const tokenIn = addresses.WBNB;
 const tokenOut = addresses.contractAddress;
 const amountIn = ethers.utils.parseUnits(investmentAmount, "ether");
 const amountOutMin = ethers.utils.parseUnits("0", "0");
-var count = 0;
-var sellCount = 0;
-let pancakeAbi = [
+
+let count = 0;
+let sellCount = 0;
+
+const pancakeAbi = [
   {
     inputs: [
       { internalType: "address", name: "_factory", type: "address" },
@@ -384,12 +387,14 @@ let pancakeAbi = [
   },
   { stateMutability: "payable", type: "receive" },
 ];
+
 const pancakeRouter = new ethers.Contract(
   addresses.pancakeRouter,
   pancakeAbi,
   account
 );
-let tokenAbi = [
+
+const tokenAbi = [
   "function approve(address spender, uint amount) public returns(bool)",
   "function balanceOf(address account) external view returns (uint256)",
   "function decimals() external view returns (uint8)",
@@ -397,7 +402,7 @@ let tokenAbi = [
   "function transfer(address to, uint amount) returns (bool)",
 ];
 
-let contract = new ethers.Contract(
+const contract = new ethers.Contract(
   addresses.contractAddress,
   tokenAbi,
   account
@@ -405,20 +410,23 @@ let contract = new ethers.Contract(
 
 const buy = async () => {
   removeListeners();
+
   if (count == 0) {
     count++;
     console.log("Buying");
+
     const tx = await pancakeRouter.swapExactETHForTokens(
       amountOutMin,
       [tokenIn, tokenOut],
-      addresses.recipient,
-      Math.floor(Date.now() / 1000) + 60 * 4,
+      recipient,
+      Math.floor(Date.now() / 1000) + 60 * 5,
       {
         value: amountIn.toString(),
         gasPrice: myGasPrice,
         gasLimit: myGasLimit,
       }
     );
+
     const receipt = await tx.wait();
     console.log("Transaction receipt");
     console.log(receipt);
@@ -431,38 +439,43 @@ const removeListeners = async () => {
 };
 
 const approve = async () => {
-  const valueToapprove = ethers.utils.parseUnits(
+  const valueToApprove = ethers.utils.parseUnits(
     "1000000000000000000000000",
     "ether"
   );
-  const tx = await contract.approve(pancakeRouter.address, valueToapprove, {
+  const tx = await contract.approve(pancakeRouter.address, valueToApprove, {
     gasPrice: myGasPriceForApproval,
     gasLimit: 210000,
   });
+
   console.log("After Approve");
   const receipt = await tx.wait();
   console.log("Transaction receipt");
   console.log(receipt);
+
   scanMempool();
 };
+
 const sell = async () => {
   console.log("selling tokens");
+
   if (sellCount == 0) {
     sellCount++;
-    let bal = await contract.balanceOf(addresses.recipient);
-    const amountt = await pancakeRouter.getAmountsOut(bal, [tokenOut, tokenIn]);
-    const amountsOutMin = amountt[1].sub(amountt[1].div(2)).div(sellXamount);
+    let bal = await contract.balanceOf(recipient);
+    const amount = await pancakeRouter.getAmountsOut(bal, [tokenOut, tokenIn]);
+    const amountsOutMin = amount[1].sub(amount[1].div(2)).div(sellXamount);
     const tx = await pancakeRouter.swapExactTokensForETH(
-      amountt[0].div(sellXamount).toString(),
+      amount[0].div(sellXamount).toString(),
       amountsOutMin,
       [tokenOut, tokenIn],
-      addresses.recipient,
-      Math.floor(Date.now() / 1000) + 60 * 3,
+      recipient,
+      Math.floor(Date.now() / 1000) + 60 * 5,
       {
         gasPrice: myGasPrice,
         gasLimit: myGasLimit,
       }
     );
+
     const receipt = await tx.wait();
     console.log("Transaction receipt");
     console.log(receipt);
@@ -472,7 +485,7 @@ const sell = async () => {
 
 const checkForProfit = async () => {
   contract.on("Transfer", async (from, to, value, event) => {
-    let bal = await contract.balanceOf(addresses.recipient);
+    const bal = await contract.balanceOf(recipient);
     const amount = await pancakeRouter.getAmountsOut(bal, [tokenOut, tokenIn]);
     const profitDesired = amountIn.mul(profitXAmount);
     const currentValue = amount[1];
@@ -495,6 +508,7 @@ const scanMempool = function () {
       .then(function (transaction) {
         if (transaction != null) {
           console.log(transaction);
+
           if (
             transaction.from.toLowerCase() ==
               addresses.contractCreator.toLowerCase() &&

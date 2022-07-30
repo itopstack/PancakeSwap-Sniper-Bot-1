@@ -1,8 +1,22 @@
 {
-  "name": "PancakeSwap Sniper Bot",
-  "version": "0.0.0",
-  "description": "TokenSniper",
-  "author": {
-    "name": ""
+  "name": "pancakeswap-sniper-bot-1",
+  "version": "1.0.0",
+  "description": "",
+  "main": "PancakeSwapSniperBot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itopstack/PancakeSwap-Sniper-Bot-1.git"
+  },
+  "author": "Kittisak Phetrungnapha",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/itopstack/PancakeSwap-Sniper-Bot-1/issues"
+  },
+  "homepage": "https://github.com/itopstack/PancakeSwap-Sniper-Bot-1#readme",
+  "dependencies": {
+    "ethers": "^5.6.9"
   }
 }

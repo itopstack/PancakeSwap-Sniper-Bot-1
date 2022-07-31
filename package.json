@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/itopstack/PancakeSwap-Sniper-Bot-1#readme",
   "dependencies": {
+    "dotenv": "^16.0.1",
     "ethers": "^5.6.9"
   }
 }
